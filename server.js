@@ -30,6 +30,17 @@ function saveRegistration(data) {
   fs.writeFileSync(filePath, JSON.stringify(existing, null, 2));
 }
 
+// API to serve registration data to admin dashboard
+app.get('/admin/data', (req, res) => {
+  const filePath = path.join(__dirname, 'data', 'registrations.json');
+  if (fs.existsSync(filePath)) {
+    const data = JSON.parse(fs.readFileSync(filePath));
+    res.json(data);
+  } else {
+    res.json([]);
+  }
+});
+
 async function generateTicketPDF(name, phone, amount, paymentId) {
   const fileName = `ticket-${paymentId}.pdf`;
   const filePath = path.join(__dirname, 'public', fileName);
@@ -105,5 +116,5 @@ app.post('/confirm', async (req, res) => {
 });
 
 app.listen(3000, () => {
-  console.log('🚀 Server with registration saving running at http://localhost:3000');
+  console.log('🚀 Server with admin dashboard support running at http://localhost:3000');
 });
