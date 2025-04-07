@@ -14,6 +14,22 @@ const client = new Twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN)
 app.use(express.static('public'));
 app.use(bodyParser.json());
 
+// Save each ticket to JSON file
+function saveRegistration(data) {
+  const dataPath = path.join(__dirname, 'data');
+  const filePath = path.join(dataPath, 'registrations.json');
+
+  if (!fs.existsSync(dataPath)) fs.mkdirSync(dataPath);
+
+  let existing = [];
+  if (fs.existsSync(filePath)) {
+    existing = JSON.parse(fs.readFileSync(filePath));
+  }
+
+  existing.push(data);
+  fs.writeFileSync(filePath, JSON.stringify(existing, null, 2));
+}
+
 async function generateTicketPDF(name, phone, amount, paymentId) {
   const fileName = `ticket-${paymentId}.pdf`;
   const filePath = path.join(__dirname, 'public', fileName);
@@ -22,10 +38,8 @@ async function generateTicketPDF(name, phone, amount, paymentId) {
 
   doc.pipe(stream);
 
-  // Background
   doc.rect(0, 0, doc.page.width, doc.page.height).fill('#fdf6f0');
 
-  // Logo
   const logoPath = path.join(__dirname, 'public', 'being-puneri-logo.png');
   if (fs.existsSync(logoPath)) {
     doc.image(logoPath, 30, 30, { width: 120 });
@@ -34,7 +48,6 @@ async function generateTicketPDF(name, phone, amount, paymentId) {
   doc.fillColor('#333').fontSize(24).text('Being Puneri Flea', 170, 40, { align: 'left' });
   doc.fontSize(16).fillColor('#555').text('Official Entry Ticket', 170, 70);
 
-  // Ticket Info
   doc.moveDown(2);
   doc.fontSize(14).fillColor('#000');
   doc.text(`👤 Name: ${name}`);
@@ -43,12 +56,10 @@ async function generateTicketPDF(name, phone, amount, paymentId) {
   doc.text(`💰 Amount Paid: ₹${amount}`);
   doc.moveDown();
 
-  // QR Data
   const qrData = `Name: ${name}\nPhone: ${phone}\nPayment ID: ${paymentId}\nAmount: ₹${amount}`;
   const qrImage = await QRCode.toDataURL(qrData);
   doc.image(qrImage, doc.page.width - 150, doc.page.height - 150, { width: 100 });
 
-  // Footer
   doc.moveTo(30, doc.page.height - 80).lineTo(doc.page.width - 30, doc.page.height - 80).stroke('#ccc');
   doc.fontSize(12).fillColor('#555').text('Thank you for registering! Show this ticket at entry.', 30, doc.page.height - 60, {
     align: 'center'
@@ -71,6 +82,14 @@ app.post('/confirm', async (req, res) => {
     const pdfPath = await generateTicketPDF(name, phone, amount, razorpay_payment_id);
     const publicUrl = 'https://visitor-registration-dynamic-razorpay.onrender.com' + pdfPath;
 
+    saveRegistration({
+      name,
+      phone,
+      amount,
+      paymentId: razorpay_payment_id,
+      time: new Date().toISOString()
+    });
+
     await client.messages.create({
       from: 'whatsapp:' + process.env.TWILIO_WHATSAPP_NUMBER,
       to: 'whatsapp:' + phone,
@@ -86,5 +105,5 @@ app.post('/confirm', async (req, res) => {
 });
 
 app.listen(3000, () => {
-  console.log('🚀 Server with QR running at http://localhost:3000');
+  console.log('🚀 Server with registration saving running at http://localhost:3000');
 });
