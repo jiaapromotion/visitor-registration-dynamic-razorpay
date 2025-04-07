@@ -41,6 +41,13 @@ function generateTicketPDF(name, phone, amount, paymentId) {
 app.post('/confirm', async (req, res) => {
   const { razorpay_payment_id, name, phone, amount } = req.body;
 
+  console.log("⚙️ Received payment:", {
+    id: razorpay_payment_id,
+    name,
+    phone,
+    amount
+  });
+
   try {
     const pdfPath = await generateTicketPDF(name, phone, amount, razorpay_payment_id);
     const publicUrl = 'https://visitor-registration-dynamic-razorpay.onrender.com' + pdfPath;
