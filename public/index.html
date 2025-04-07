@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Register & Pay</title>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <style>
+    body { font-family: sans-serif; max-width: 400px; margin: 40px auto; }
+    label, input { display: block; width: 100%; margin-bottom: 10px; }
+    button { padding: 10px 20px; background: black; color: white; border: none; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h2>Register for the Event</h2>
+  <form id="regForm">
+    <label>Full Name:</label>
+    <input type="text" name="name" required />
+    <label>Phone Number (+91...):</label>
+    <input type="tel" name="phone" required />
+    <label>Amount (₹):</label>
+    <input type="number" name="amount" value="50" required />
+    <button type="submit">Pay Now</button>
+  </form>
+
+  <script>
+    const form = document.getElementById('regForm');
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const formData = new FormData(form);
+      const name = formData.get("name");
+      const phone = formData.get("phone");
+      const amount = parseFloat(formData.get("amount")) * 100;
+
+      const options = {
+        key: "key: "rzp_test_7oY41Dzk4aWjox", // Replace with your Razorpay key ID in deployment
+        amount: amount,
+        currency: "INR",
+        name: "Event Registration",
+        description: "Registration Fee",
+        handler: function (response) {
+          fetch("/confirm", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              razorpay_payment_id: response.razorpay_payment_id,
+              name: name,
+              phone: phone
+            })
+          });
+          alert("Payment successful! WhatsApp confirmation will be sent.");
+        },
+        prefill: {
+          name: name,
+          contact: phone
+        },
+        notes: {
+          name: name,
+          phone: phone
+        },
+        theme: {
+          color: "#3399cc"
+        }
+      };
+      const rzp = new Razorpay(options);
+      rzp.open();
+    });
+  </script>
+</body>
+</html>
