@@ -1,4 +1,3 @@
-// Force deploy - updated PDFKit
 
 const express = require('express');
 const bodyParser = require('body-parser');
@@ -17,7 +16,7 @@ app.use(bodyParser.json());
 function generateTicketPDF(name, phone, amount, paymentId) {
   return new Promise((resolve, reject) => {
     const fileName = `ticket-${paymentId}.pdf`;
-    const filePath = path.join(__dirname, 'public', fileName); // Save in /public
+    const filePath = path.join(__dirname, 'public', fileName);
     const doc = new PDFDocument();
     const stream = fs.createWriteStream(filePath);
 
@@ -34,24 +33,22 @@ function generateTicketPDF(name, phone, amount, paymentId) {
 
     doc.end();
 
-    stream.on('finish', () => resolve('/' + fileName)); // Return path relative to public
+    stream.on('finish', () => resolve('/' + fileName));
     stream.on('error', reject);
   });
 }
 
 app.post('/confirm', async (req, res) => {
-  const { razorpay_payment_id, name, phone } = req.body;
+  const { razorpay_payment_id, name, phone, amount } = req.body;
 
   try {
-    const amount = "50"; // Or make dynamic
-
     const pdfPath = await generateTicketPDF(name, phone, amount, razorpay_payment_id);
     const publicUrl = 'https://visitor-registration-dynamic-razorpay.onrender.com' + pdfPath;
 
     await client.messages.create({
       from: 'whatsapp:' + process.env.TWILIO_WHATSAPP_NUMBER,
       to: 'whatsapp:' + phone,
-      body: `Hi ${name}, your payment was successful! 🎉 Here is your ticket.`,
+      body: `Hi ${name}, your payment of ₹${amount} was successful! 🎉 Here is your ticket.`,
       mediaUrl: [publicUrl]
     });
 
