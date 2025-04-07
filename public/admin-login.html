@@ -1,0 +1,46 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Login</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f2f2f2; display: flex; justify-content: center; align-items: center; height: 100vh; }
+    form { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); width: 300px; }
+    input, button { width: 100%; margin-top: 10px; padding: 10px; font-size: 16px; }
+    button { background: #333; color: white; border: none; cursor: pointer; }
+    h2 { text-align: center; }
+  </style>
+</head>
+<body>
+  <form onsubmit="login(event)">
+    <h2>Admin Login</h2>
+    <input type="password" id="password" placeholder="Enter Password" required />
+    <button type="submit">Login</button>
+    <p id="msg" style="color:red; text-align:center;"></p>
+  </form>
+
+  <script>
+    async function login(e) {
+      e.preventDefault();
+      const password = document.getElementById('password').value;
+      const res = await fetch('/admin-login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ password })
+      });
+      const result = await res.text();
+      if (result === 'ok') {
+        localStorage.setItem('admin-auth', 'yes');
+        window.location.href = '/admin.html';
+      } else {
+        document.getElementById('msg').innerText = 'Invalid password!';
+      }
+    }
+
+    if (window.location.pathname === "/admin.html" && localStorage.getItem('admin-auth') !== 'yes') {
+      window.location.href = "/admin-login.html";
+    }
+  </script>
+</body>
+</html>
