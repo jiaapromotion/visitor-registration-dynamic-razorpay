@@ -6,6 +6,7 @@ const PDFDocument = require('pdfkit');
 const QRCode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
+const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 const app = express();
@@ -14,9 +15,16 @@ const client = new Twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN)
 app.use(express.static('public'));
 app.use(bodyParser.json());
 
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
+
 app.post('/admin-login', (req, res) => {
   const { password } = req.body;
-  console.log("🔐 Login attempt:", password, "| Expected:", process.env.ADMIN_PASSWORD);
   if (password === process.env.ADMIN_PASSWORD) {
     res.send('ok');
   } else {
@@ -27,14 +35,11 @@ app.post('/admin-login', (req, res) => {
 function saveRegistration(data) {
   const dataPath = path.join(__dirname, 'data');
   const filePath = path.join(dataPath, 'registrations.json');
-
   if (!fs.existsSync(dataPath)) fs.mkdirSync(dataPath);
-
   let existing = [];
   if (fs.existsSync(filePath)) {
     existing = JSON.parse(fs.readFileSync(filePath));
   }
-
   existing.push(data);
   fs.writeFileSync(filePath, JSON.stringify(existing, null, 2));
 }
@@ -54,8 +59,8 @@ async function generateTicketPDF(name, phone, amount, paymentId) {
   const filePath = path.join(__dirname, 'public', fileName);
   const doc = new PDFDocument({ size: 'A5', layout: 'landscape' });
   const stream = fs.createWriteStream(filePath);
-
   doc.pipe(stream);
+
   doc.rect(0, 0, doc.page.width, doc.page.height).fill('#fdf6f0');
   const logoPath = path.join(__dirname, 'public', 'being-puneri-logo.png');
   if (fs.existsSync(logoPath)) {
@@ -82,25 +87,23 @@ async function generateTicketPDF(name, phone, amount, paymentId) {
   });
 
   doc.end();
-
   return new Promise((resolve, reject) => {
-    stream.on('finish', () => resolve('/' + fileName));
+    stream.on('finish', () => resolve({ filePath, publicPath: '/' + fileName }));
     stream.on('error', reject);
   });
 }
 
 app.post('/confirm', async (req, res) => {
-  const { razorpay_payment_id, name, phone, amount } = req.body;
-
-  console.log("📩 Ticket details:", { name, phone, amount });
+  const { razorpay_payment_id, name, phone, email, amount } = req.body;
 
   try {
-    const pdfPath = await generateTicketPDF(name, phone, amount, razorpay_payment_id);
-    const publicUrl = 'https://visitor-registration-dynamic-razorpay.onrender.com' + pdfPath;
+    const { filePath, publicPath } = await generateTicketPDF(name, phone, amount, razorpay_payment_id);
+    const fullUrl = 'https://visitor-registration-dynamic-razorpay.onrender.com' + publicPath;
 
     saveRegistration({
       name,
       phone,
+      email,
       amount,
       paymentId: razorpay_payment_id,
       time: new Date().toISOString()
@@ -110,10 +113,23 @@ app.post('/confirm', async (req, res) => {
       from: 'whatsapp:' + process.env.TWILIO_WHATSAPP_NUMBER,
       to: 'whatsapp:' + phone,
       body: `Hi ${name}, your ticket for Being Puneri Flea is ready 🎉 Scan QR for details.`,
-      mediaUrl: [publicUrl]
+      mediaUrl: [fullUrl]
     });
 
-    res.status(200).send("Ticket with QR sent via WhatsApp.");
+    if (email) {
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: 'Your Being Puneri Flea Ticket 🎟️',
+        text: `Hi ${name},\n\nThank you for your registration. Please find your ticket attached.\n\nRegards,\nBeing Puneri Team`,
+        attachments: [{
+          filename: `ticket-${razorpay_payment_id}.pdf`,
+          path: filePath
+        }]
+      });
+    }
+
+    res.status(200).send("Ticket sent via WhatsApp and Email.");
   } catch (error) {
     console.error("❌ Error:", error);
     res.status(500).send("Failed to send ticket.");
@@ -121,5 +137,5 @@ app.post('/confirm', async (req, res) => {
 });
 
 app.listen(3000, () => {
-  console.log('🚀 Server with admin login debug running at http://localhost:3000');
+  console.log('🚀 Server with email and WhatsApp running at http://localhost:3000');
 });
