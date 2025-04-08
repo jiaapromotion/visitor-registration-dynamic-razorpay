@@ -102,6 +102,7 @@ async function generateTicketPDF(name, phone, amount, paymentId) {
 }
 
 app.post('/confirm', async (req, res) => {
+  console.log("📨 Incoming confirm data:", req.body);
   const { razorpay_payment_id, name, phone, email, amount } = req.body;
 
   try {
@@ -147,5 +148,5 @@ app.post('/confirm', async (req, res) => {
 });
 
 app.listen(3000, () => {
-  console.log('🚀 Server with email + debug running at http://localhost:3000');
+  console.log('🚀 Server with email + full debug running at http://localhost:3000');
 });
