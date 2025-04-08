@@ -2,21 +2,27 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Visitor Registration - Being Puneri Flea</title>
+  <title>Being Puneri Flea - Visitor Registration</title>
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 30px; background: #fffaf3; }
+    form { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
+    input, button { width: 100%; padding: 10px; margin-top: 10px; font-size: 16px; }
+    h2 { text-align: center; }
+  </style>
 </head>
 <body>
-  <h1>Register & Buy Ticket</h1>
   <form id="registrationForm">
-    <input type="text" id="name" placeholder="Your Name" required><br><br>
-    <input type="text" id="phone" placeholder="Phone with +91" required><br><br>
-    <input type="email" id="email" placeholder="Email ID" required><br><br>
-    <input type="number" id="amount" placeholder="Amount" required value="1"><br><br>
+    <h2>Being Puneri Flea</h2>
+    <input type="text" id="name" placeholder="Your Name" required />
+    <input type="text" id="phone" placeholder="Phone (with +91)" required />
+    <input type="email" id="email" placeholder="Email ID" required />
+    <input type="number" id="amount" placeholder="Ticket Amount" value="1" required />
     <button type="submit">Pay Now</button>
   </form>
 
   <script>
-    document.getElementById("registrationForm").addEventListener("submit", async function(e) {
+    document.getElementById("registrationForm").addEventListener("submit", async function (e) {
       e.preventDefault();
       const name = document.getElementById("name").value;
       const phone = document.getElementById("phone").value;
@@ -24,34 +30,32 @@
       const amount = document.getElementById("amount").value;
 
       const options = {
-        key: "RAZORPAY_KEY_ID", // Replace with your real Razorpay key
+        key: "rzp_test_7oY41Dzk4aWjox", // ✅ Your Razorpay Test Key
         amount: amount * 100,
         currency: "INR",
         name: "Being Puneri Flea",
         description: "Event Ticket",
         handler: async function (response) {
-          const res = await fetch("/confirm", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              razorpay_payment_id: response.razorpay_payment_id,
-              name,
-              phone,
-              email,
-              amount
-            })
-          });
-          if (res.ok) {
-            alert("Ticket sent via WhatsApp and Email!");
-          } else {
-            alert("Something went wrong.");
+          try {
+            const res = await fetch("/confirm", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                razorpay_payment_id: response.razorpay_payment_id,
+                name,
+                phone,
+                email,
+                amount
+              })
+            });
+            const result = await res.text();
+            alert(result);
+          } catch (err) {
+            console.error("❌ Error confirming registration:", err);
+            alert("Oops! Something went wrong. Payment Failed");
           }
         },
-        prefill: {
-          name,
-          email,
-          contact: phone
-        }
+        prefill: { name, email, contact: phone }
       };
 
       const rzp = new Razorpay(options);
