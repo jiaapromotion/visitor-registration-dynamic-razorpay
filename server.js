@@ -23,6 +23,14 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+transporter.verify((error, success) => {
+  if (error) {
+    console.error("❌ Email transporter error:", error);
+  } else {
+    console.log("✅ Email transporter is ready");
+  }
+});
+
 app.post('/admin-login', (req, res) => {
   const { password } = req.body;
   if (password === process.env.ADMIN_PASSWORD) {
@@ -117,6 +125,7 @@ app.post('/confirm', async (req, res) => {
     });
 
     if (email) {
+      console.log("📩 Sending email to:", email);
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: email,
@@ -127,15 +136,16 @@ app.post('/confirm', async (req, res) => {
           path: filePath
         }]
       });
+      console.log("✅ Email sent successfully to:", email);
     }
 
     res.status(200).send("Ticket sent via WhatsApp and Email.");
   } catch (error) {
-    console.error("❌ Error:", error);
+    console.error("❌ Error sending ticket:", error);
     res.status(500).send("Failed to send ticket.");
   }
 });
 
 app.listen(3000, () => {
-  console.log('🚀 Server with email and WhatsApp running at http://localhost:3000');
+  console.log('🚀 Server with email + debug running at http://localhost:3000');
 });
