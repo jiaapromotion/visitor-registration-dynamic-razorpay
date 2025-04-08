@@ -14,7 +14,16 @@ const client = new Twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN)
 app.use(express.static('public'));
 app.use(bodyParser.json());
 
-// Save each ticket to JSON file
+app.post('/admin-login', (req, res) => {
+  const { password } = req.body;
+  console.log("🔐 Login attempt:", password, "| Expected:", process.env.ADMIN_PASSWORD);
+  if (password === process.env.ADMIN_PASSWORD) {
+    res.send('ok');
+  } else {
+    res.status(401).send('unauthorized');
+  }
+});
+
 function saveRegistration(data) {
   const dataPath = path.join(__dirname, 'data');
   const filePath = path.join(dataPath, 'registrations.json');
@@ -30,7 +39,6 @@ function saveRegistration(data) {
   fs.writeFileSync(filePath, JSON.stringify(existing, null, 2));
 }
 
-// API to serve registration data to admin dashboard
 app.get('/admin/data', (req, res) => {
   const filePath = path.join(__dirname, 'data', 'registrations.json');
   if (fs.existsSync(filePath)) {
@@ -48,9 +56,7 @@ async function generateTicketPDF(name, phone, amount, paymentId) {
   const stream = fs.createWriteStream(filePath);
 
   doc.pipe(stream);
-
   doc.rect(0, 0, doc.page.width, doc.page.height).fill('#fdf6f0');
-
   const logoPath = path.join(__dirname, 'public', 'being-puneri-logo.png');
   if (fs.existsSync(logoPath)) {
     doc.image(logoPath, 30, 30, { width: 120 });
@@ -58,7 +64,6 @@ async function generateTicketPDF(name, phone, amount, paymentId) {
 
   doc.fillColor('#333').fontSize(24).text('Being Puneri Flea', 170, 40, { align: 'left' });
   doc.fontSize(16).fillColor('#555').text('Official Entry Ticket', 170, 70);
-
   doc.moveDown(2);
   doc.fontSize(14).fillColor('#000');
   doc.text(`👤 Name: ${name}`);
@@ -116,5 +121,5 @@ app.post('/confirm', async (req, res) => {
 });
 
 app.listen(3000, () => {
-  console.log('🚀 Server with admin dashboard support running at http://localhost:3000');
+  console.log('🚀 Server with admin login debug running at http://localhost:3000');
 });
