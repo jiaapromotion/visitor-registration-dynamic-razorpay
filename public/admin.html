@@ -4,46 +4,125 @@
 <head>
   <meta charset="UTF-8">
   <title>Admin Dashboard - Visitor Registrations</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; }
-    h1 { text-align: center; }
+    h1, h2 { text-align: center; }
+    input[type="text"] {
+      width: 300px; padding: 10px; margin: 10px auto; display: block;
+      border: 1px solid #ccc; border-radius: 5px;
+    }
     table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #fff; }
     th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
     th { background: #333; color: #fff; }
     tr:nth-child(even) { background: #f1f1f1; }
+    button {
+      display: block; margin: 15px auto; padding: 10px 20px;
+      background: #333; color: white; border: none; border-radius: 5px;
+      cursor: pointer;
+    }
+    canvas { max-width: 800px; margin: 40px auto; display: block; }
   </style>
 </head>
 <body>
-  <h1>🧾 Admin Dashboard - Visitor Registrations</h1>
+  <h1>🧾 Admin Dashboard</h1>
+  <input type="text" id="searchBox" placeholder="Search by name, phone or payment ID..." />
+  <button onclick="downloadExcel()">⬇ Download Excel</button>
+  <h2 id="stats"></h2>
   <table id="dataTable">
     <thead>
       <tr>
         <th>Name</th>
         <th>Phone</th>
-        <th>Amount (₹)</th>
+        <th>Amount</th>
         <th>Payment ID</th>
         <th>Time</th>
       </tr>
     </thead>
     <tbody></tbody>
   </table>
+  <canvas id="chart"></canvas>
 
   <script>
+    let allData = [];
+
+    function renderTable(data) {
+      const tbody = document.querySelector("#dataTable tbody");
+      tbody.innerHTML = "";
+      data.forEach(entry => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${entry.name}</td>
+          <td>${entry.phone}</td>
+          <td>${entry.amount}</td>
+          <td>${entry.paymentId}</td>
+          <td>${new Date(entry.time).toLocaleString()}</td>
+        `;
+        tbody.appendChild(row);
+      });
+
+      const total = data.reduce((sum, e) => sum + Number(e.amount), 0);
+      document.getElementById("stats").innerText =
+        `Total Visitors: ${data.length} | Total Amount: ₹${total}`;
+    }
+
+    function filterData() {
+      const search = document.getElementById("searchBox").value.toLowerCase();
+      const filtered = allData.filter(entry =>
+        entry.name.toLowerCase().includes(search) ||
+        entry.phone.toLowerCase().includes(search) ||
+        entry.paymentId.toLowerCase().includes(search)
+      );
+      renderTable(filtered);
+    }
+
+    function downloadExcel() {
+      let csv = "Name,Phone,Amount,Payment ID,Time\n";
+      allData.forEach(entry => {
+        csv += `${entry.name},${entry.phone},${entry.amount},${entry.paymentId},${new Date(entry.time).toLocaleString()}\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = "registrations.csv";
+      a.click();
+    }
+
+    function drawChart(data) {
+      const daily = {};
+      data.forEach(entry => {
+        const day = new Date(entry.time).toLocaleDateString();
+        daily[day] = (daily[day] || 0) + Number(entry.amount);
+      });
+
+      const labels = Object.keys(daily);
+      const values = Object.values(daily);
+
+      new Chart(document.getElementById('chart'), {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Daily Amount Collected (₹)',
+            data: values,
+            backgroundColor: '#333'
+          }]
+        },
+        options: {
+          scales: {
+            y: { beginAtZero: true }
+          }
+        }
+      });
+    }
+
     fetch('/admin/data')
       .then(res => res.json())
       .then(data => {
-        const tbody = document.querySelector("#dataTable tbody");
-        data.reverse().forEach(entry => {
-          const row = document.createElement("tr");
-          row.innerHTML = `
-            <td>${entry.name}</td>
-            <td>${entry.phone}</td>
-            <td>${entry.amount}</td>
-            <td>${entry.paymentId}</td>
-            <td>${new Date(entry.time).toLocaleString()}</td>
-          `;
-          tbody.appendChild(row);
-        });
+        allData = data.reverse();
+        renderTable(allData);
+        drawChart(allData);
+        document.getElementById("searchBox").addEventListener("input", filterData);
       })
       .catch(err => {
         document.body.innerHTML = "<h2 style='color:red;'>⚠️ Unable to load data</h2>";
